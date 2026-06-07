@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CliniqAI — Healthcare RAG Assistant</title>
+<meta name="description" content="CliniqAI is an early-stage healthcare AI startup building a HIPAA-aligned RAG assistant that helps clinicians instantly query clinical guidelines, drug formularies, and institutional protocols on AWS."/>
+<meta property="og:title" content="CliniqAI — Healthcare RAG Assistant"/>
+<meta property="og:description" content="AI-powered clinical knowledge retrieval for healthcare professionals, built on Amazon Bedrock, Lambda, and OpenSearch."/>
+<meta property="og:type" content="website"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --teal:#0f6e56;--teal-light:#e1f5ee;--teal-mid:#1d9e75;
+  --ink:#0d1a14;--ink-mid:#2a3d33;--muted:#5a6e63;--subtle:#a8b8b0;
+  --surface:#f7faf8;--white:#ffffff;--border:#dce8e1;
+  --serif:'DM Serif Display',Georgia,serif;
+  --sans:'DM Sans',system-ui,sans-serif;
+  --radius:10px;--radius-lg:18px;
+}
+html{scroll-behavior:smooth}
+body{font-family:var(--sans);background:var(--surface);color:var(--ink);line-height:1.7;font-size:16px;font-weight:300}
+
+nav{
+  position:sticky;top:0;z-index:100;
+  background:rgba(247,250,248,0.92);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+  padding:0 2rem;height:60px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.nav-logo{font-family:var(--serif);font-size:1.3rem;color:var(--teal);text-decoration:none;letter-spacing:-0.01em}
+.nav-links{display:flex;gap:2rem;list-style:none}
+.nav-links a{text-decoration:none;color:var(--muted);font-size:0.9rem;font-weight:400;transition:color .2s}
+.nav-links a:hover{color:var(--teal)}
+.nav-cta{
+  background:var(--teal);color:var(--white);
+  padding:0.45rem 1.1rem;border-radius:6px;
+  font-size:0.85rem;font-weight:500;text-decoration:none;
+  transition:background .2s;
+}
+.nav-cta:hover{background:var(--ink)}
+
+section{padding:5rem 2rem}
+.container{max-width:900px;margin:0 auto}
+.container-wide{max-width:1100px;margin:0 auto}
+
+/* hero */
+.hero{
+  background:var(--white);
+  border-bottom:1px solid var(--border);
+  padding:7rem 2rem 5rem;
+  text-align:center;
+}
+.hero-badge{
+  display:inline-block;
+  background:var(--teal-light);color:var(--teal);
+  font-size:0.78rem;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;
+  padding:0.35rem 1rem;border-radius:100px;
+  margin-bottom:1.8rem;
+}
+.hero h1{
+  font-family:var(--serif);font-size:clamp(2.4rem,5vw,3.8rem);
+  color:var(--ink);line-height:1.15;font-weight:400;
+  margin-bottom:1.2rem;letter-spacing:-0.02em;
+}
+.hero h1 em{color:var(--teal);font-style:italic}
+.hero-sub{
+  font-size:1.1rem;color:var(--muted);max-width:580px;
+  margin:0 auto 2.5rem;font-weight:300;line-height:1.75;
+}
+.hero-actions{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap}
+.btn{
+  padding:0.75rem 1.75rem;border-radius:8px;font-size:0.95rem;
+  font-weight:500;text-decoration:none;transition:all .2s;
+  font-family:var(--sans);
+}
+.btn-primary{background:var(--teal);color:var(--white)}
+.btn-primary:hover{background:var(--ink)}
+.btn-outline{border:1px solid var(--border);color:var(--ink-mid);background:var(--white)}
+.btn-outline:hover{border-color:var(--teal);color:var(--teal)}
+
+/* query demo */
+.demo-box{
+  margin:3.5rem auto 0;max-width:660px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-lg);overflow:hidden;
+}
+.demo-bar{
+  background:var(--white);border-bottom:1px solid var(--border);
+  padding:0.7rem 1.2rem;
+  display:flex;align-items:center;gap:8px;
+}
+.demo-dot{width:10px;height:10px;border-radius:50%}
+.demo-query{padding:1.2rem 1.5rem;font-size:0.9rem;color:var(--muted);font-style:italic;border-bottom:1px solid var(--border)}
+.demo-answer{padding:1.2rem 1.5rem}
+.demo-answer-label{font-size:0.72rem;font-weight:500;letter-spacing:0.07em;text-transform:uppercase;color:var(--teal);margin-bottom:0.5rem}
+.demo-answer-text{font-size:0.9rem;color:var(--ink-mid);line-height:1.7}
+.demo-sources{
+  padding:0.8rem 1.5rem;background:var(--white);
+  border-top:1px solid var(--border);
+  display:flex;gap:0.6rem;flex-wrap:wrap;
+}
+.source-pill{
+  font-size:0.72rem;background:var(--teal-light);color:var(--teal);
+  padding:0.25rem 0.7rem;border-radius:100px;
+}
+
+/* problem */
+.problem{background:var(--ink)}
+.problem h2{font-family:var(--serif);font-size:clamp(1.8rem,3.5vw,2.6rem);color:var(--white);font-weight:400;margin-bottom:1rem;letter-spacing:-0.02em}
+.problem p{color:#8aa898;font-size:1.05rem;max-width:600px;line-height:1.8}
+.problem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.5rem;margin-top:3rem}
+.problem-card{
+  background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);
+  border-radius:var(--radius-lg);padding:1.5rem;
+}
+.problem-card-num{font-family:var(--serif);font-size:2.2rem;color:var(--teal-mid);margin-bottom:0.5rem;font-style:italic}
+.problem-card-text{font-size:0.9rem;color:#8aa898;line-height:1.6}
+
+/* how it works */
+.how h2{font-family:var(--serif);font-size:clamp(1.8rem,3.5vw,2.6rem);font-weight:400;margin-bottom:0.5rem;letter-spacing:-0.02em}
+.section-sub{color:var(--muted);font-size:1rem;margin-bottom:3rem}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1.5rem}
+.step{
+  background:var(--white);border:1px solid var(--border);
+  border-radius:var(--radius-lg);padding:1.5rem;
+  position:relative;
+}
+.step-num{
+  width:32px;height:32px;border-radius:50%;
+  background:var(--teal-light);color:var(--teal);
+  font-size:0.85rem;font-weight:500;
+  display:flex;align-items:center;justify-content:center;
+  margin-bottom:1rem;
+}
+.step h3{font-size:0.95rem;font-weight:500;margin-bottom:0.4rem;color:var(--ink)}
+.step p{font-size:0.85rem;color:var(--muted);line-height:1.6}
+
+/* services */
+.services{background:var(--white);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.services h2{font-family:var(--serif);font-size:clamp(1.8rem,3.5vw,2.6rem);font-weight:400;margin-bottom:0.5rem;letter-spacing:-0.02em}
+.service-layers{display:flex;flex-direction:column;gap:1rem;margin-top:2rem}
+.service-layer{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.layer-header{
+  background:var(--surface);padding:0.75rem 1.25rem;
+  display:flex;align-items:center;gap:0.75rem;
+  border-bottom:1px solid var(--border);
+}
+.layer-tag{
+  font-size:0.72rem;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;
+  padding:0.2rem 0.65rem;border-radius:100px;
+}
+.tag-security{background:#e1f5ee;color:#0f6e56}
+.tag-networking{background:#e6f1fb;color:#185fa5}
+.tag-api{background:#eeedfe;color:#534ab7}
+.tag-compute{background:#e1f5ee;color:#085041}
+.tag-ai{background:#faeeda;color:#854f0b}
+.tag-storage{background:#faeeda;color:#633806}
+.tag-ops{background:#f1efe8;color:#444441}
+.layer-label{font-size:0.85rem;font-weight:500;color:var(--ink)}
+.layer-services{
+  padding:0.75rem 1.25rem;
+  display:flex;flex-wrap:wrap;gap:0.5rem;
+}
+.svc-pill{
+  font-size:0.8rem;color:var(--muted);
+  background:var(--surface);border:1px solid var(--border);
+  padding:0.25rem 0.75rem;border-radius:100px;
+}
+
+/* hipaa */
+.hipaa{background:var(--teal);padding:5rem 2rem}
+.hipaa h2{font-family:var(--serif);font-size:clamp(1.8rem,3.5vw,2.4rem);color:var(--white);font-weight:400;margin-bottom:0.5rem;letter-spacing:-0.02em}
+.hipaa-sub{color:#9fe1cb;font-size:1rem;margin-bottom:2.5rem}
+.hipaa-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem}
+.hipaa-card{
+  background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);
+  border-radius:var(--radius);padding:1.25rem;
+}
+.hipaa-card h3{font-size:0.9rem;font-weight:500;color:var(--white);margin-bottom:0.4rem}
+.hipaa-card p{font-size:0.82rem;color:#9fe1cb;line-height:1.6}
+
+/* about */
+.about h2{font-family:var(--serif);font-size:clamp(1.8rem,3.5vw,2.6rem);font-weight:400;margin-bottom:1rem;letter-spacing:-0.02em}
+.about-grid{display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:start}
+.about-text p{color:var(--muted);line-height:1.8;margin-bottom:1rem;font-size:1rem}
+.about-facts{display:flex;flex-direction:column;gap:1rem}
+.fact-card{
+  background:var(--white);border:1px solid var(--border);
+  border-radius:var(--radius);padding:1.25rem 1.5rem;
+  display:flex;flex-direction:column;gap:0.2rem;
+}
+.fact-label{font-size:0.75rem;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;color:var(--subtle)}
+.fact-value{font-size:1rem;font-weight:500;color:var(--ink)}
+
+/* cta */
+.cta-section{
+  background:var(--ink);text-align:center;
+  padding:5rem 2rem;
+}
+.cta-section h2{font-family:var(--serif);font-size:clamp(1.8rem,3.5vw,2.6rem);color:var(--white);font-weight:400;margin-bottom:1rem;letter-spacing:-0.02em}
+.cta-section p{color:#8aa898;max-width:520px;margin:0 auto 2rem;font-size:1rem}
+.cta-section .btn-primary{background:var(--teal-mid)}
+.cta-section .btn-primary:hover{background:var(--teal)}
+
+/* footer */
+footer{
+  background:var(--white);border-top:1px solid var(--border);
+  padding:2rem;text-align:center;
+  font-size:0.82rem;color:var(--subtle);
+}
+footer a{color:var(--muted);text-decoration:none}
+footer a:hover{color:var(--teal)}
+
+@media(max-width:600px){
+  nav{padding:0 1rem}
+  .nav-links{display:none}
+  section{padding:3.5rem 1.25rem}
+  .about-grid{grid-template-columns:1fr}
+}
+
+/* animations */
+@keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+.hero h1,.hero-sub,.hero-actions,.demo-box{animation:fadeUp .6s ease both}
+.hero-sub{animation-delay:.1s}
+.hero-actions{animation-delay:.2s}
+.demo-box{animation-delay:.3s}
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="#">CliniqAI</a>
+  <ul class="nav-links">
+    <li><a href="#how-it-works">How it works</a></li>
+    <li><a href="#architecture">Architecture</a></li>
+    <li><a href="#hipaa">HIPAA</a></li>
+    <li><a href="#about">About</a></li>
+  </ul>
+  <a class="nav-cta" href="https://github.com/runme-data-playground/healthcare-rag-assistant" target="_blank" rel="noopener">View on GitHub</a>
+</nav>
+
+<section class="hero">
+  <div class="container">
+    <div class="hero-badge">Healthcare AI &middot; Built on AWS</div>
+    <h1>Clinical knowledge,<br/><em>instantly retrieved</em></h1>
+    <p class="hero-sub">CliniqAI is an AI-powered assistant that lets healthcare professionals ask clinical questions in plain language and receive grounded, cited answers from institutional guidelines and formularies — in seconds.</p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="https://github.com/runme-data-playground/healthcare-rag-assistant" target="_blank" rel="noopener">View the codebase</a>
+      <a class="btn btn-outline" href="#how-it-works">See how it works</a>
+    </div>
+
+    <div class="demo-box">
+      <div class="demo-bar">
+        <div class="demo-dot" style="background:#f09595"></div>
+        <div class="demo-dot" style="background:#fac775"></div>
+        <div class="demo-dot" style="background:#97c459"></div>
+        <span style="font-size:0.78rem;color:#a8b8b0;margin-left:0.5rem">CliniqAI — query assistant</span>
+      </div>
+      <div class="demo-query">"What is the recommended first-line treatment for Type 2 diabetes with CKD stage 3?"</div>
+      <div class="demo-answer">
+        <div class="demo-answer-label">Answer</div>
+        <div class="demo-answer-text">For patients with T2DM and CKD stage 3 (eGFR 30–59), metformin may be continued if eGFR &ge;30 with dose reduction. SGLT2 inhibitors (empagliflozin, dapagliflozin) are recommended as first-line add-on therapy due to demonstrated renoprotective effects. GLP-1 receptor agonists are preferred over sulfonylureas for their lower hypoglycaemia risk in this population.</div>
+      </div>
+      <div class="demo-sources">
+        <span class="source-pill">ADA Standards of Care 2024 &middot; p.48</span>
+        <span class="source-pill">KDIGO CKD Guidelines &middot; p.112</span>
+        <span class="source-pill">Hospital Formulary v4 &middot; p.23</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="problem">
+  <div class="container">
+    <h2>Clinicians spend too much time finding answers</h2>
+    <p>Healthcare professionals navigate dozens of fragmented documents — PDFs, intranets, EHR portals — to find evidence they need at the point of care. CliniqAI consolidates institutional knowledge into one query interface.</p>
+    <div class="problem-grid">
+      <div class="problem-card">
+        <div class="problem-card-num">23min</div>
+        <div class="problem-card-text">Average time physicians spend on administrative and information lookup tasks per patient encounter</div>
+      </div>
+      <div class="problem-card">
+        <div class="problem-card-num">40%</div>
+        <div class="problem-card-text">Of clinical decisions are made without consulting current guidelines due to time constraints</div>
+      </div>
+      <div class="problem-card">
+        <div class="problem-card-num">6,000+</div>
+        <div class="problem-card-text">Drugs in a typical hospital formulary — impossible to memorise dosing, interactions, and adjustments</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="how" id="how-it-works">
+  <div class="container">
+    <h2>How CliniqAI works</h2>
+    <p class="section-sub">A serverless RAG pipeline on AWS — from question to cited clinical answer in under 3 seconds</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Authenticate</h3>
+        <p>Clinician signs in via Cognito with MFA. Role-based access scopes which documents are searchable.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>Ask</h3>
+        <p>Natural language query is submitted via API Gateway, validated by WAF, and routed to Lambda.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>Retrieve</h3>
+        <p>Bedrock embeds the query; OpenSearch Serverless finds the most semantically relevant document chunks.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <h3>Generate</h3>
+        <p>Claude 3.5 Sonnet synthesises a grounded answer from retrieved context only. No hallucination.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <h3>Cite</h3>
+        <p>Every answer includes source document, section, and page number so clinicians can verify the reference.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="services" id="architecture">
+  <div class="container">
+    <h2>AWS architecture</h2>
+    <p class="section-sub">20+ AWS services across security, AI, compute, and observability layers</p>
+    <div class="service-layers">
+      <div class="service-layer">
+        <div class="layer-header">
+          <span class="layer-tag tag-security">Security</span>
+          <span class="layer-label">Identity, encryption &amp; threat protection</span>
+        </div>
+        <div class="layer-services">
+          <span class="svc-pill">Amazon Cognito</span>
+          <span class="svc-pill">AWS WAF</span>
+          <span class="svc-pill">AWS KMS</span>
+          <span class="svc-pill">AWS Secrets Manager</span>
+          <span class="svc-pill">IAM</span>
+          <span class="svc-pill">Amazon GuardDuty</span>
+        </div>
+      </div>
+      <div class="service-layer">
+        <div class="layer-header">
+          <span class="layer-tag tag-networking">Networking</span>
+          <span class="layer-label">Private network boundary</span>
+        </div>
+        <div class="layer-services">
+          <span class="svc-pill">Amazon VPC</span>
+          <span class="svc-pill">VPC Endpoints (Bedrock, S3, OpenSearch)</span>
+        </div>
+      </div>
+      <div class="service-layer">
+        <div class="layer-header">
+          <span class="layer-tag tag-api">API</span>
+          <span class="layer-label">Request routing &amp; authorisation</span>
+        </div>
+        <div class="layer-services">
+          <span class="svc-pill">Amazon API Gateway</span>
+        </div>
+      </div>
+      <div class="service-layer">
+        <div class="layer-header">
+          <span class="layer-tag tag-compute">Compute</span>
+          <span class="layer-label">RAG orchestration &amp; ingestion</span>
+        </div>
+        <div class="layer-services">
+          <span class="svc-pill">AWS Lambda (query handler)</span>
+          <span class="svc-pill">AWS Lambda (ingestion handler)</span>
+          <span class="svc-pill">Amazon EventBridge</span>
+        </div>
+      </div>
+      <div class="service-layer">
+        <div class="layer-header">
+          <span class="layer-tag tag-ai">AI / Search</span>
+          <span class="layer-label">Foundation models, embeddings &amp; vector search</span>
+        </div>
+        <div class="layer-services">
+          <span class="svc-pill">Amazon Bedrock (Claude 3.5 Sonnet)</span>
+          <span class="svc-pill">Bedrock Knowledge Base</span>
+          <span class="svc-pill">Bedrock Guardrails</span>
+          <span class="svc-pill">Amazon Titan Embeddings V2</span>
+          <span class="svc-pill">Amazon OpenSearch Serverless</span>
+        </div>
+      </div>
+      <div class="service-layer">
+        <div class="layer-header">
+          <span class="layer-tag tag-storage">Storage</span>
+          <span class="layer-label">Document store &amp; audit logs</span>
+        </div>
+        <div class="layer-services">
+          <span class="svc-pill">Amazon S3 (clinical documents)</span>
+          <span class="svc-pill">Amazon S3 (CloudTrail logs)</span>
+        </div>
+      </div>
+      <div class="service-layer">
+        <div class="layer-header">
+          <span class="layer-tag tag-ops">Observability</span>
+          <span class="layer-label">Monitoring, compliance &amp; audit</span>
+        </div>
+        <div class="layer-services">
+          <span class="svc-pill">Amazon CloudWatch</span>
+          <span class="svc-pill">AWS X-Ray</span>
+          <span class="svc-pill">AWS CloudTrail</span>
+          <span class="svc-pill">AWS Config</span>
+          <span class="svc-pill">Amazon SNS</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="hipaa" id="hipaa">
+  <div class="container">
+    <h2>Built for HIPAA compliance</h2>
+    <p class="hipaa-sub">CliniqAI is designed around HIPAA Technical Safeguard requirements from the ground up</p>
+    <div class="hipaa-grid">
+      <div class="hipaa-card">
+        <h3>Access control</h3>
+        <p>Cognito user pools with enforced MFA, role-based document scoping, IAM least-privilege roles, and VPC network isolation</p>
+      </div>
+      <div class="hipaa-card">
+        <h3>Audit controls</h3>
+        <p>CloudTrail logs every API call with timestamp and caller identity. CloudWatch structured logs. X-Ray distributed tracing.</p>
+      </div>
+      <div class="hipaa-card">
+        <h3>Data integrity</h3>
+        <p>KMS encryption at rest for S3 and OpenSearch. TLS 1.2+ in transit. S3 versioning prevents accidental data loss.</p>
+      </div>
+      <div class="hipaa-card">
+        <h3>Transmission security</h3>
+        <p>VPC endpoints route all traffic between Lambda, Bedrock, S3, and OpenSearch privately — never over the public internet.</p>
+      </div>
+      <div class="hipaa-card">
+        <h3>Automatic logoff</h3>
+        <p>Cognito access tokens expire after 60 minutes. Refresh tokens are revocable immediately if a device is compromised.</p>
+      </div>
+      <div class="hipaa-card">
+        <h3>Threat detection</h3>
+        <p>GuardDuty monitors for anomalous access. WAF blocks injection attacks, bots, and malicious IPs before they reach the API.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="about" id="about">
+  <div class="container">
+    <h2>About CliniqAI</h2>
+    <div class="about-grid">
+      <div class="about-text">
+        <p>CliniqAI is an early-stage healthcare AI startup building tools that reduce the time clinicians spend looking for information — so they can spend more time with patients.</p>
+        <p>Our first product is a HIPAA-aligned RAG assistant that connects to a hospital's existing document library and lets any authorised clinician ask questions in plain language, receiving grounded answers with citations in under three seconds.</p>
+        <p>We are a bootstrapped startup building on Amazon Web Services, taking advantage of the AWS serverless and AI ecosystem to deliver production-grade infrastructure without the overhead of managing servers.</p>
+        <p>The full infrastructure is open-source and available on GitHub, built with Terraform, Python, and Amazon Bedrock.</p>
+        <a class="btn btn-outline" href="https://github.com/runme-data-playground/healthcare-rag-assistant" target="_blank" rel="noopener" style="display:inline-block;margin-top:0.5rem">View source on GitHub</a>
+      </div>
+      <div class="about-facts">
+        <div class="fact-card">
+          <span class="fact-label">Company</span>
+          <span class="fact-value">CliniqAI</span>
+        </div>
+        <div class="fact-card">
+          <span class="fact-label">Founded</span>
+          <span class="fact-value">2025</span>
+        </div>
+        <div class="fact-card">
+          <span class="fact-label">Stage</span>
+          <span class="fact-value">Pre-seed / Bootstrapped</span>
+        </div>
+        <div class="fact-card">
+          <span class="fact-label">Primary cloud</span>
+          <span class="fact-value">Amazon Web Services</span>
+        </div>
+        <div class="fact-card">
+          <span class="fact-label">Sector</span>
+          <span class="fact-value">Healthcare AI / Clinical informatics</span>
+        </div>
+        <div class="fact-card">
+          <span class="fact-label">Target customers</span>
+          <span class="fact-value">Hospitals, clinics, health systems</span>
+        </div>
+        <div class="fact-card">
+          <span class="fact-label">Infrastructure</span>
+          <span class="fact-value">Fully serverless, open-source</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="cta-section">
+  <div class="container">
+    <h2>Ready to deploy CliniqAI?</h2>
+    <p>The full infrastructure is available on GitHub — Terraform modules, Lambda functions, and deployment scripts included.</p>
+    <a class="btn btn-primary" href="https://github.com/runme-data-playground/healthcare-rag-assistant" target="_blank" rel="noopener">Get started on GitHub</a>
+  </div>
+</section>
+
+<footer>
+  <p>&copy; 2025 CliniqAI &middot; Built on <a href="https://aws.amazon.com" target="_blank" rel="noopener">Amazon Web Services</a> &middot; <a href="https://github.com/runme-data-playground/healthcare-rag-assistant" target="_blank" rel="noopener">GitHub</a></p>
+  <p style="margin-top:0.5rem">This site is intended for AWS Activate programme review. CliniqAI does not process real patient data at this stage.</p>
+</footer>
+
+</body>
+</html>
